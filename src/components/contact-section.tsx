@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { sendContactEmail } from "@/lib/send-contact-email"
-import type { ContactFormData } from "@/lib/send-contact-email"
+import { contactFormSchema } from "@/lib/contact-schema"
+import type { ContactFormData } from "@/lib/contact-schema"
 
 export default function ContactSection() {
   const [submitState, setSubmitState] = useState<"idle" | "success" | "error">(
@@ -28,9 +29,15 @@ export default function ContactSection() {
         form.reset()
       } catch (err) {
         setSubmitState("error")
-        setErrorMessage(
-          err instanceof Error ? err.message : "Something went wrong"
-        )
+        const message =
+          err instanceof Error &&
+          (err.message.includes("required") ||
+            err.message.includes("Invalid email") ||
+            err.message.includes("too long") ||
+            err.message.includes("Too many requests"))
+            ? err.message
+            : "Something went wrong. Please try again later."
+        setErrorMessage(message)
       }
     },
   })
@@ -76,8 +83,10 @@ export default function ContactSection() {
                   <form.Field
                     name="name"
                     validators={{
-                      onSubmit: ({ value }) =>
-                        !value.trim() ? "Name is required" : undefined,
+                      onSubmit: ({ value }) => {
+                        const result = contactFormSchema.shape.name.safeParse(value)
+                        return result.success ? undefined : result.error.issues[0]?.message
+                      },
                     }}
                   >
                     {(field) => (
@@ -106,8 +115,10 @@ export default function ContactSection() {
                   <form.Field
                     name="email"
                     validators={{
-                      onSubmit: ({ value }) =>
-                        !value.trim() ? "Email is required" : undefined,
+                      onSubmit: ({ value }) => {
+                        const result = contactFormSchema.shape.email.safeParse(value)
+                        return result.success ? undefined : result.error.issues[0]?.message
+                      },
                     }}
                   >
                     {(field) => (
@@ -134,8 +145,10 @@ export default function ContactSection() {
                   <form.Field
                     name="message"
                     validators={{
-                      onSubmit: ({ value }) =>
-                        !value.trim() ? "Message is required" : undefined,
+                      onSubmit: ({ value }) => {
+                        const result = contactFormSchema.shape.message.safeParse(value)
+                        return result.success ? undefined : result.error.issues[0]?.message
+                      },
                     }}
                   >
                     {(field) => (

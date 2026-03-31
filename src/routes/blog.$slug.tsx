@@ -1,7 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { createFileRoute, Link, type ErrorComponentProps } from "@tanstack/react-router"
 import Markdown from "react-markdown"
+import rehypeSanitize from "rehype-sanitize"
 import { getPostBySlug, getAdjacentPosts } from "@/lib/posts"
-import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react"
+import { ArrowLeftIcon, ArrowRightIcon, WarningIcon } from "@phosphor-icons/react"
+import { Button } from "@/components/ui/button"
 import { SITE_URL, SITE_NAME } from "@/lib/constants"
 import { Separator } from "@/components/ui/separator.tsx"
 import PostTags from "@/components/post-tags.tsx"
@@ -9,10 +11,13 @@ import PostTags from "@/components/post-tags.tsx"
 export const Route = createFileRoute("/blog/$slug")({
   loader: ({ params }) => {
     const post = getPostBySlug(params.slug)
-    if (!post) throw new Error("Post not found")
+    if (!post) {
+      throw new Error("Post not found")
+    }
     const adjacent = getAdjacentPosts(params.slug)
     return { post, adjacent }
   },
+  errorComponent: PostError,
   head: ({ loaderData }) => {
     const post = loaderData?.post
     if (!post) return {}
@@ -88,7 +93,7 @@ function PostPage() {
       <PostTags className="mt-0" tags={post.tags} />
       <Separator className="mb-6" />
       <div className="prose mb-12 max-w-none prose-neutral prose-pre:overflow-x-auto dark:prose-invert">
-        <Markdown>{post.content}</Markdown>
+        <Markdown rehypePlugins={[rehypeSanitize]}>{post.content}</Markdown>
       </div>
       {(adjacent.prev || adjacent.next) && (
         <>
@@ -132,5 +137,30 @@ function PostPage() {
         </>
       )}
     </article>
+  )
+}
+
+function PostError({ error }: ErrorComponentProps) {
+  const isNotFound =
+    error instanceof Error && error.message === "Post not found"
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-6 py-32 text-center">
+      <WarningIcon className="size-12 text-muted-foreground/40" />
+      <h1 className="text-2xl font-semibold tracking-tight">
+        {isNotFound ? "Post not found" : "Something went wrong"}
+      </h1>
+      <p className="max-w-md text-muted-foreground">
+        {isNotFound
+          ? "The blog post you're looking for doesn't exist or has been removed."
+          : "An error occurred while loading this post. Please try again."}
+      </p>
+      <Button asChild size="lg" className="mt-2">
+        <Link to="/blog">
+          <ArrowLeftIcon className="size-4" />
+          Back to blog
+        </Link>
+      </Button>
+    </div>
   )
 }
