@@ -1,3 +1,5 @@
+import matter from "gray-matter"
+
 export type PostMeta = {
   slug: string
   title: string
@@ -18,33 +20,6 @@ const postFiles = import.meta.glob("/src/content/posts/*.md", {
   import: "default",
 }) as Record<string, string>
 
-function parseFrontmatter(raw: string): {
-  data: Record<string, string | string[]>
-  content: string
-} {
-  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/)
-  if (!match) return { data: {}, content: raw }
-
-  const data: Record<string, string | string[]> = {}
-  for (const line of match[1].split("\n")) {
-    const idx = line.indexOf(":")
-    if (idx === -1) continue
-    const key = line.slice(0, idx).trim()
-    const value = line.slice(idx + 1).trim()
-
-    const arrayMatch = value.match(/^\[(.+)]$/)
-    if (arrayMatch) {
-      data[key] = arrayMatch[1]
-        .split(",")
-        .map((item) => item.trim().replace(/^["']|["']$/g, ""))
-    } else {
-      data[key] = value.replace(/^["']|["']$/g, "")
-    }
-  }
-
-  return { data, content: match[2] }
-}
-
 function formatDate(raw: string): string {
   const parsed = new Date(raw)
   if (isNaN(parsed.getTime())) return raw
@@ -55,19 +30,23 @@ function formatDate(raw: string): string {
   })
 }
 
-function parsePost(filePath: string, raw: string): Post & { rawDate: string } {
-  const { data, content } = parseFrontmatter(raw)
+function parsePost(filePath: string, raw: string): Post {
+  const { data, content } = matter(raw)
   const slug = filePath.replace("/src/content/posts/", "").replace(".md", "")
-  const rawDate = (data.date as string) ?? ""
+  const rawDate = typeof data.date === "string" ? data.date : ""
+
+  const tags: ReadonlyArray<string> = Array.isArray(data.tags)
+    ? data.tags.filter((t): t is string => typeof t === "string")
+    : []
 
   return {
     slug,
-    title: (data.title as string) ?? slug,
-    description: (data.description as string) ?? "",
+    title: typeof data.title === "string" ? data.title : slug,
+    description: typeof data.description === "string" ? data.description : "",
     date: formatDate(rawDate),
     rawDate,
-    image: (data.image as string) ?? "",
-    tags: Array.isArray(data.tags) ? data.tags : [],
+    image: typeof data.image === "string" ? data.image : "",
+    tags,
     content,
   }
 }
